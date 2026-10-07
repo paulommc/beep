@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Estudo – Códigos de Beep da BIOS</title>
+<style>
+  :root{--bg:#0b1020;--card:#151c36;--acc:#3ddc97;--acc2:#4cc9f0;--txt:#e8ecff;--mut:#8b95c9}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Segoe UI,system-ui,sans-serif;background:radial-gradient(circle at top,#18214a,var(--bg));color:var(--txt);min-height:100vh;padding:20px}
+  main{max-width:900px;margin:0 auto}
+  h1{text-align:center;margin:10px 0 4px} h1 span{color:var(--acc)}
+  .sub{text-align:center;color:var(--mut);margin-bottom:18px}
+  .top{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+  input,select,button,a.btn{font:inherit;border:0;border-radius:12px;padding:11px 16px;background:#232c55;color:var(--txt);text-decoration:none;cursor:pointer}
+  input{flex:1;min-width:180px;cursor:text}
+  button:hover,a.btn:hover{background:#2d3870}
+  a.primary{background:var(--acc);color:#04170d;font-weight:700}
+  .legend{color:var(--mut);font-size:.9rem;margin-bottom:14px}
+  .card{background:var(--card);border-radius:16px;padding:18px 20px;box-shadow:0 8px 30px #0006;margin-bottom:16px}
+  .card h2{margin:0 0 4px;color:var(--acc)}
+  .card small{color:var(--mut)}
+  table{width:100%;border-collapse:collapse;margin-top:10px}
+  td{padding:10px 8px;border-top:1px solid #263066;vertical-align:middle}
+  td.pat{font-family:Consolas,monospace;font-size:1.25rem;letter-spacing:3px;color:var(--acc2);white-space:nowrap}
+  td button{padding:8px 12px;border-radius:50%}
+  .empty{text-align:center;color:var(--mut);padding:30px}
+  @media(max-width:600px){td.pat{white-space:normal;font-size:1rem}}
+</style>
+</head>
+<body>
+<main>
+  <h1>📖 Guia de <span>Códigos de Beep</span></h1>
+  <div class="sub">Lista completa de padrões de beep, agrupados por BIOS/fabricante</div>
+
+  <div class="top">
+    <a class="btn primary" href="index.html">🎮 Ir para o jogo</a>
+    <input id="search" type="search" placeholder="🔍 Buscar por defeito (ex.: vídeo, memória, CPU)…">
+    <select id="filter"></select>
+    <button id="playAll" title="Toca todos os beeps da lista, em sequência">▶ Tocar lista</button>
+  </div>
+  <div class="legend"><b>●</b> beep curto &nbsp; <b>▬</b> beep longo &nbsp; <b>▲▼</b> tom alto/baixo alternado &nbsp; <b>━━</b> beep contínuo &nbsp; (espaço = pausa entre grupos)</div>
+
+  <div id="list"></div>
+</main>
+
+<script src="codes.js"></script>
+<script>
+let ctx, stopAll=false;
+function tone(f,s,d){
+  const o=ctx.createOscillator(),g=ctx.createGain();
+  o.type="square";o.frequency.value=f;
+  g.gain.setValueAtTime(0,s);g.gain.linearRampToValueAtTime(.12,s+.005);
+  g.gain.setValueAtTime(.12,s+d-.01);g.gain.linearRampToValueAtTime(0,s+d);
+  o.connect(g).connect(ctx.destination);o.start(s);o.stop(s+d+.02);
+}
+function playPattern(p){
+  ctx=ctx||new (window.AudioContext||window.webkitAudioContext)();ctx.resume();
+  let t=ctx.currentTime+.1;
+  for(const c of p){
+    if(c==="s"){tone(1000,t,.15);t+=.3}
+    else if(c==="l"){tone(1000,t,.55);t+=.7}
+    else if(c==="-"){t+=.55}
+    else if(c==="C"){tone(1000,t,2.5);t+=2.5}
+    else if(c==="h"){tone(1400,t,.22);t+=.22}
+    else if(c==="w"){tone(700,t,.22);t+=.22}
+  }
+  return (t-ctx.currentTime)*1000;
+}
+const visual=p=>[...p].map(c=>({s:"●",l:"▬","-":"&nbsp;&nbsp;",C:"━━━━",h:"▲",w:"▼"}[c])).join(" ");
+const norm=s=>s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+
+const BR=[...new Set(CODES.map(c=>c.b))];
+const sel=document.getElementById("filter");
+sel.innerHTML=["Todas",...BR].map(b=>`<option>${b}</option>`).join("");
+
+let visible=[];
+function render(){
+  stopAll=true;
+  const q=norm(document.getElementById("search").value.trim()),f=sel.value;
+  visible=CODES.filter(c=>(f==="Todas"||c.b===f)&&(!q||norm(c.m+" "+c.b).includes(q)));
+  const out=document.getElementById("list");
+  if(!visible.length){out.innerHTML='<div class="card empty">Nenhum código encontrado.</div>';return}
+  out.innerHTML="";
+  BR.forEach(b=>{
+    const items=visible.filter(c=>c.b===b);
+    if(!items.length)return;
+    const card=document.createElement("div");card.className="card";
+    card.innerHTML=`<h2>${b}</h2><small>${items.length} código(s)</small><table></table>`;
+    const tb=card.querySelector("table");
+    items.forEach(c=>{
+      const tr=document.createElement("tr");
+      tr.innerHTML=`<td style="width:50px"><button title="Ouvir">🔊</button></td><td class="pat">${visual(c.p)}</td><td>${c.m}${c.c?` <small style="color:var(--acc)">(${c.c})</small>`:""}</td>`;
+      tr.querySelector("button").onclick=()=>playPattern(c.p);
+      tb.appendChild(tr);
+    });
+    out.appendChild(card);
+  });
+}
+document.getElementById("search").oninput=render;
+sel.onchange=render;
+document.getElementById("playAll").onclick=async function(){
+  if(this.dataset.run){stopAll=true;return}
+  this.dataset.run=1;this.textContent="⏹ Parar";stopAll=false;
+  for(const c of visible){
+    if(stopAll)break;
+    const ms=playPattern(c.p);
+    await new Promise(r=>setTimeout(r,ms+900));
+  }
+  delete this.dataset.run;this.textContent="▶ Tocar lista";
+};
+render();
+</script>
+</body>
+</html>
