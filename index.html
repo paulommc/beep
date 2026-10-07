@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Beep Detective – Códigos de Beep da BIOS</title>
+<style>
+  :root{--bg:#0b1020;--card:#151c36;--acc:#3ddc97;--acc2:#4cc9f0;--bad:#ff5d73;--txt:#e8ecff;--mut:#8b95c9}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Segoe UI,system-ui,sans-serif;background:radial-gradient(circle at top,#18214a,var(--bg));color:var(--txt);min-height:100vh;display:flex;justify-content:center;padding:20px}
+  main{width:100%;max-width:760px}
+  h1{text-align:center;margin:10px 0 4px;font-size:2rem}
+  h1 span{color:var(--acc)}
+  .sub{text-align:center;color:var(--mut);margin-bottom:20px}
+  .card{background:var(--card);border-radius:16px;padding:22px;box-shadow:0 8px 30px #0006;margin-bottom:16px}
+  button{font:inherit;cursor:pointer;border:0;border-radius:12px;padding:12px 18px;background:#232c55;color:var(--txt);transition:.15s}
+  button:hover:not(:disabled){transform:translateY(-2px);background:#2d3870}
+  button:disabled{opacity:.5;cursor:default}
+  .primary{background:var(--acc);color:#04170d;font-weight:700}
+  .primary:hover:not(:disabled){background:#5af0b0!important}
+  .brands{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:14px 0}
+  .brands button.sel{outline:2px solid var(--acc);background:#1e3a4a}
+  .row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+  .hud{display:flex;justify-content:space-between;color:var(--mut);font-size:.95rem;margin-bottom:10px;flex-wrap:wrap;gap:6px}
+  .hud b{color:var(--txt)}
+  .bar{height:8px;background:#232c55;border-radius:8px;overflow:hidden;margin-bottom:16px}
+  .bar div{height:100%;background:var(--acc2);width:100%}
+  .speaker{text-align:center;margin:10px 0 18px}
+  .play{width:110px;height:110px;border-radius:50%;font-size:2.4rem;background:var(--acc2);color:#04202b;box-shadow:0 0 0 0 #4cc9f0aa}
+  .play.on{animation:pulse .6s infinite}
+  @keyframes pulse{to{box-shadow:0 0 0 22px #4cc9f000}}
+  .brandtag{display:inline-block;background:#232c55;border-radius:20px;padding:4px 14px;color:var(--acc);font-weight:700;margin-bottom:8px}
+  .opts{display:grid;gap:10px}
+  .opts button{text-align:left;padding:14px 16px}
+  .opts .ok{background:#1b6b4a!important}
+  .opts .no{background:#7a2335!important}
+  .fb{margin-top:14px;padding:14px;border-radius:12px;background:#0e1430;display:none}
+  .pat{font-family:Consolas,monospace;font-size:1.3rem;letter-spacing:3px;color:var(--acc2)}
+  table{width:100%;border-collapse:collapse;font-size:.92rem}
+  th,td{padding:8px;border-bottom:1px solid #263066;text-align:left}
+  th{color:var(--mut)}
+  .hide{display:none}
+  .big{font-size:3rem;text-align:center;color:var(--acc);font-weight:800}
+  ol{padding-left:22px}
+  select{font:inherit;background:#232c55;color:var(--txt);border:0;border-radius:10px;padding:8px}
+</style>
+</head>
+<body>
+<main>
+  <h1>🔊 Beep <span>Detective</span></h1>
+  <div class="sub">Escute o beep da BIOS e descubra o defeito do computador!</div>
+
+  <!-- MENU -->
+  <section id="menu" class="card">
+    <h3>Escolha a BIOS / fabricante</h3>
+    <div class="brands" id="brands"></div>
+    <div class="row">
+      <button class="primary" id="startBtn">▶ Iniciar jogo (10 rodadas)</button>
+      <button id="studyBtn">📖 Modo estudo</button>
+    </div>
+    <p style="color:var(--mut);font-size:.9rem">Legenda: <b>●</b> beep curto &nbsp; <b>▬</b> beep longo &nbsp; <b>▲▼</b> tom alto/baixo alternado &nbsp; <b>━━</b> beep contínuo.<br>
+    Use fones ou caixas de som. Você tem 3 repetições por pergunta e 3 vidas.</p>
+    <h3>🏆 Melhores pontuações</h3>
+    <ol id="rank"></ol>
+  </section>
+
+  <!-- ESTUDO -->
+  <section id="study" class="card hide">
+    <div class="row" style="justify-content:space-between;margin-bottom:10px">
+      <h3 style="margin:0">Tabela de referência</h3>
+      <div><select id="studyFilter"></select> <button id="backStudy">⬅ Voltar</button></div>
+    </div>
+    <table><thead><tr><th></th><th>BIOS</th><th>Padrão</th><th>Significado</th></tr></thead><tbody id="studyBody"></tbody></table>
+  </section>
+
+  <!-- JOGO -->
+  <section id="game" class="card hide">
+    <div class="hud"><span>Rodada <b id="hRound">1</b>/10</span><span>Pontos <b id="hScore">0</b></span><span>Sequência 🔥 <b id="hStreak">0</b></span><span id="hLives">❤️❤️❤️</span></div>
+    <div class="bar"><div id="timer"></div></div>
+    <div class="speaker">
+      <div class="brandtag" id="qBrand"></div><br>
+      <button class="play" id="playBtn">🔊</button><br>
+      <small style="color:var(--mut)">Repetições restantes: <b id="replays">3</b></small>
+    </div>
+    <div class="opts" id="opts"></div>
+    <div class="fb" id="fb"></div>
+    <div class="row" style="margin-top:14px"><button class="primary hide" id="nextBtn">Próxima ➜</button></div>
+  </section>
+
+  <!-- FIM -->
+  <section id="end" class="card hide">
+    <h2 style="text-align:center" id="endTitle"></h2>
+    <div class="big" id="endScore"></div>
+    <p style="text-align:center;color:var(--mut)" id="endInfo"></p>
+    <div class="row"><button class="primary" id="againBtn">🔁 Jogar de novo</button><button id="menuBtn">Menu</button></div>
+  </section>
+</main>
+
+<script>
+/* Notação: s=curto, l=longo, '-'=pausa entre grupos, h/w=tom alto/baixo alternado, C=contínuo */
+const CODES = [
+ // AMI
+ {b:"AMI",p:"s",m:"Falha no refresh da DRAM (memória)"},
+ {b:"AMI",p:"ss",m:"Falha no circuito de paridade da memória"},
+ {b:"AMI",p:"sss",m:"Falha nos primeiros 64 KB de RAM"},
+ {b:"AMI",p:"ssss",m:"Falha no timer do sistema"},
+ {b:"AMI",p:"sssss",m:"Falha no processador"},
+ {b:"AMI",p:"ssssss",m:"Falha no controlador de teclado (Gate A20)"},
+ {b:"AMI",p:"sssssss",m:"Erro de exceção em modo virtual (CPU)"},
+ {b:"AMI",p:"ssssssss",m:"Falha de leitura/escrita na memória de vídeo"},
+ {b:"AMI",p:"sssssssss",m:"Erro de checksum da ROM BIOS"},
+ {b:"AMI",p:"l-sss",m:"Falha na memória convencional/estendida"},
+ {b:"AMI",p:"l-ssssssss",m:"Falha no teste de vídeo (retrace)"},
+ // Award
+ {b:"Award",p:"s",m:"Sistema OK – POST concluído com sucesso"},
+ {b:"Award",p:"l-ss",m:"Erro de vídeo (placa de vídeo ou monitor)"},
+ {b:"Award",p:"l-sss",m:"Erro de vídeo (placa não detectada / memória de vídeo)"},
+ {b:"Award",p:"C",m:"Problema de memória RAM"},
+ {b:"Award",p:"hwhwhw",m:"Problema no processador (superaquecimento/falha)"},
+ {b:"Award",p:"ssssssss",m:"Problema de alimentação ou placa-mãe (beeps curtos repetidos)"},
+ // Phoenix
+ {b:"Phoenix",p:"s-s-sss",m:"Falha de leitura/escrita no CMOS (1-1-3)"},
+ {b:"Phoenix",p:"s-s-ssss",m:"Erro de checksum da ROM BIOS (1-1-4)"},
+ {b:"Phoenix",p:"s-ss-s",m:"Falha no timer de intervalo (1-2-1)"},
+ {b:"Phoenix",p:"s-s-ss",m:"Falha no teste da CPU (1-1-2)"},
+ {b:"Phoenix",p:"s-sss-s",m:"Falha na verificação do refresh da DRAM (1-3-1)"},
+ {b:"Phoenix",p:"ss-s-s",m:"Falha nos primeiros 64 KB de RAM – bit 0 (2-1-1)"},
+ // IBM
+ {b:"IBM",p:"s",m:"POST normal – sistema OK"},
+ {b:"IBM",p:"ss",m:"Erro de POST – veja o código na tela"},
+ {b:"IBM",p:"C",m:"Falha na fonte de alimentação ou placa-mãe"},
+ {b:"IBM",p:"ssssssss",m:"Fonte de alimentação ou placa-mãe (beeps curtos repetidos)"},
+ {b:"IBM",p:"l-s",m:"Falha na placa-mãe"},
+ {b:"IBM",p:"l-ss",m:"Erro na placa de vídeo (mono/CGA)"},
+ {b:"IBM",p:"l-sss",m:"Erro na placa de vídeo (EGA)"},
+ {b:"IBM",p:"lll",m:"Erro no teclado / placa de teclado"},
+ // Compaq
+ {b:"Compaq",p:"s",m:"POST normal – sistema OK"},
+ {b:"Compaq",p:"ss",m:"Erro geral – veja mensagem na tela"},
+ {b:"Compaq",p:"l-s",m:"Falha na placa-mãe / checksum da ROM"},
+ {b:"Compaq",p:"l-ss",m:"Erro na placa de vídeo"},
+];
+const BRANDS = ["Todas", ...new Set(CODES.map(c=>c.b))];
+
+/* ---------- Áudio ---------- */
+let ctx, stopFlag = 0;
+function tone(freq,start,dur){
+  const o=ctx.createOscillator(), g=ctx.createGain();
+  o.type="square"; o.frequency.value=freq;
+  g.gain.setValueAtTime(0,start);
+  g.gain.linearRampToValueAtTime(.12,start+.005);
+  g.gain.setValueAtTime(.12,start+dur-.01);
+  g.gain.linearRampToValueAtTime(0,start+dur);
+  o.connect(g).connect(ctx.destination); o.start(start); o.stop(start+dur+.02);
+}
+function playPattern(p,done){
+  ctx = ctx || new (window.AudioContext||window.webkitAudioContext)();
+  ctx.resume();
+  let t = ctx.currentTime+.1;
+  for(const ch of p){
+    if(ch==="s"){tone(1000,t,.15);t+=.15+.15}
+    else if(ch==="l"){tone(1000,t,.55);t+=.55+.15}
+    else if(ch==="-"){t+=.55}
+    else if(ch==="C"){tone(1000,t,2.5);t+=2.5}
+    else if(ch==="h"){tone(1400,t,.22);t+=.22}
+    else if(ch==="w"){tone(700,t,.22);t+=.22}
+  }
+  const ms=(t-ctx.currentTime)*1000;
+  setTimeout(()=>done&&done(),ms);
+  return ms;
+}
+function visual(p){
+  return [...p].map(c=>({s:"●",l:"▬","-":"&nbsp;&nbsp;",C:"━━━━",h:"▲",w:"▼"}[c])).join(" ");
+}
+
+/* ---------- Estado ---------- */
+const $=id=>document.getElementById(id);
+let brand="Todas",round,score,streak,lives,replays,q,locked,tInt,tLeft,deck;
+const TIME=20;
+
+function show(id){["menu","study","game","end"].forEach(s=>$(s).classList.toggle("hide",s!==id))}
+
+/* ---------- Menu ---------- */
+function renderBrands(){
+  $("brands").innerHTML="";
+  BRANDS.forEach(b=>{
+    const bt=document.createElement("button");
+    bt.textContent=b; if(b===brand)bt.className="sel";
+    bt.onclick=()=>{brand=b;renderBrands()};
+    $("brands").appendChild(bt);
+  });
+}
+function renderRank(){
+  const r=JSON.parse(localStorage.getItem("beepRank")||"[]");
+  $("rank").innerHTML=r.length?r.map(x=>`<li>${x.s} pts – ${x.b} <small style="color:var(--mut)">(${x.d})</small></li>`).join(""):"<li style='list-style:none;color:var(--mut)'>Ainda sem pontuações.</li>";
+}
+function saveRank(){
+  const r=JSON.parse(localStorage.getItem("beepRank")||"[]");
+  r.push({s:score,b:brand,d:new Date().toLocaleDateString("pt-BR")});
+  r.sort((a,b)=>b.s-a.s); localStorage.setItem("beepRank",JSON.stringify(r.slice(0,5)));
+}
+
+/* ---------- Estudo ---------- */
+function renderStudy(){
+  const f=$("studyFilter").value||"Todas";
+  $("studyBody").innerHTML="";
+  CODES.filter(c=>f==="Todas"||c.b===f).forEach(c=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td><button>🔊</button></td><td>${c.b}</td><td class="pat">${visual(c.p)}</td><td>${c.m}</td>`;
+    tr.querySelector("button").onclick=()=>playPattern(c.p);
+    $("studyBody").appendChild(tr);
+  });
+}
+
+/* ---------- Jogo ---------- */
+function shuffle(a){return a.map(v=>[Math.random(),v]).sort((x,y)=>x[0]-y[0]).map(x=>x[1])}
+function start(){
+  const pool=CODES.filter(c=>brand==="Todas"||c.b===brand);
+  deck=shuffle(pool).slice(0,10);
+  round=0;score=0;streak=0;lives=3;
+  show("game");nextQ();
+}
+function nextQ(){
+  if(round>=deck.length||lives<=0)return finish();
+  q=deck[round];round++;locked=false;replays=3;
+  $("hRound").textContent=round;$("hScore").textContent=score;$("hStreak").textContent=streak;
+  $("hLives").textContent="❤️".repeat(lives)+"🖤".repeat(3-lives);
+  $("replays").textContent=replays;
+  $("qBrand").textContent="BIOS: "+q.b;
+  $("fb").style.display="none";$("nextBtn").classList.add("hide");
+  // opções: mesma BIOS preferencialmente, sem significados repetidos
+  const same=CODES.filter(c=>c.b===q.b&&c.m!==q.m);
+  const other=CODES.filter(c=>c.b!==q.b&&c.m!==q.m);
+  const wrong=[...new Set(shuffle(same).concat(shuffle(other)).map(c=>c.m))].slice(0,3);
+  const opts=shuffle([q.m,...wrong]);
+  $("opts").innerHTML="";
+  opts.forEach(m=>{
+    const bt=document.createElement("button");bt.textContent=m;
+    bt.onclick=()=>answer(m,bt);$("opts").appendChild(bt);
+  });
+  tLeft=TIME;updTimer();clearInterval(tInt);
+  tInt=setInterval(()=>{tLeft-=.1;updTimer();if(tLeft<=0)answer(null)},100);
+  setTimeout(()=>doPlay(true),300);
+}
+function updTimer(){$("timer").style.width=Math.max(0,tLeft/TIME*100)+"%"}
+function doPlay(free){
+  if(locked&&!free)return;
+  if(!free){if(replays<=0)return;replays--;$("replays").textContent=replays}
+  $("playBtn").classList.add("on");$("playBtn").disabled=true;
+  playPattern(q.p,()=>{$("playBtn").classList.remove("on");$("playBtn").disabled=false});
+}
+function answer(m,btn){
+  if(locked)return;locked=true;clearInterval(tInt);
+  const ok=m===q.m;
+  [...$("opts").children].forEach(b=>{
+    b.disabled=true;
+    if(b.textContent===q.m)b.classList.add("ok");
+  });
+  if(btn&&!ok)btn.classList.add("no");
+  let msg;
+  if(ok){
+    const pts=100+Math.round(tLeft*3)+replays*10+streak*20;
+    score+=pts;streak++;msg=`✅ Correto! +${pts} pontos`;
+  }else{
+    lives--;streak=0;msg=m===null?"⏰ Tempo esgotado!":"❌ Errou!";
+  }
+  $("hScore").textContent=score;$("hStreak").textContent=streak;
+  $("hLives").textContent="❤️".repeat(lives)+"🖤".repeat(3-lives);
+  $("fb").innerHTML=`${msg}<br><br><b>${q.b}</b>: <span class="pat">${visual(q.p)}</span><br>${q.m}`;
+  $("fb").style.display="block";
+  $("nextBtn").textContent=(round>=deck.length||lives<=0)?"Ver resultado ➜":"Próxima ➜";
+  $("nextBtn").classList.remove("hide");
+}
+function finish(){
+  clearInterval(tInt);saveRank();renderRank();
+  $("endTitle").textContent=lives<=0?"💀 Fim de jogo!":(score>=1500?"🏅 Técnico expert!":"🎉 Fim das rodadas!");
+  $("endScore").textContent=score+" pts";
+  $("endInfo").textContent=`BIOS: ${brand} • Vidas restantes: ${lives}`;
+  show("end");
+}
+
+$("startBtn").onclick=start;
+$("studyBtn").onclick=()=>{renderStudy();show("study")};
+$("backStudy").onclick=()=>show("menu");
+$("playBtn").onclick=()=>doPlay(false);
+$("nextBtn").onclick=nextQ;
+$("againBtn").onclick=start;
+$("menuBtn").onclick=()=>show("menu");
+$("studyFilter").innerHTML=BRANDS.map(b=>`<option>${b}</option>`).join("");
+$("studyFilter").onchange=renderStudy;
+renderBrands();renderRank();
+</script>
+</body>
+</html>
